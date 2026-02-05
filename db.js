@@ -52,5 +52,22 @@ function getTeam(userId, format) {
   const db = readDB();
   return db.users?.[userId]?.teams?.[fmt]?.teamText || null;
 }
+function deleteTeam(userId, format) {
+  const fmt = normalizeFormat(format);
+  const db = readDB();
 
-module.exports = { setTeam, getTeam };
+  const user = db.users?.[userId];
+  if (!user?.teams?.[fmt]) return false;
+
+  delete user.teams[fmt];
+
+  // 유저가 가진 팀이 0개가 되면 유저 데이터도 정리(선택이지만 깔끔함)
+  if (Object.keys(user.teams).length === 0) {
+    delete db.users[userId];
+  }
+
+  writeDB(db);
+  return true;
+}
+
+module.exports = { setTeam, getTeam, deleteTeam };

@@ -13,7 +13,7 @@ const {
 require("dotenv").config({ quiet: true });
 
 const { teamCommand } = require("./commands/team");
-const { setTeam, getTeam } = require("./db");
+const { setTeam, getTeam, deleteTeam } = require("./db");
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -83,6 +83,21 @@ client.on("interactionCreate", async (interaction) => {
 
   // /team view
   if (sub === "view") {
+// /team delete
+if (sub === "delete") {
+  const ok = deleteTeam(interaction.user.id, format);
+
+  if (!ok) {
+    return interaction.editReply(
+      `삭제할 팀이 없어. (format: \`${format}\`)`
+    );
+  }
+
+  return interaction.editReply(
+    `🗑️ 팀 삭제 완료! (format: \`${format}\`)`
+  );
+}
+
     const teamText = getTeam(interaction.user.id, format);
 
     if (!teamText) {
