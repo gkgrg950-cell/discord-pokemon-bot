@@ -1,5 +1,12 @@
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("UNHANDLED:", err);
+});
 const { Client, GatewayIntentBits } = require("discord.js");
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -15,13 +22,12 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-client.login(process.env.DISCORD_TOKEN).catch((e) => {
-  console.error("❌ Login failed:", e);
-});
-const http = require("http");
+client.login(process.env.DISCORD_TOKEN)
+  .then(() => console.log("Login OK"))
+  .catch((e) => console.error("Login failed:", e));
 
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end("OK");
-}).listen(PORT, () => console.log("HTTP server listening on", PORT));
+}).listen(PORT, "0.0.0.0", () => console.log("HTTP server listening on", PORT));
