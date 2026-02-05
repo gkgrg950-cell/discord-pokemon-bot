@@ -17,10 +17,17 @@ function ensureDBFile() {
   }
 }
 
+// ✅ 안전한 DB 읽기 (JSON 깨져도 봇 안 죽게)
 function readDB() {
   ensureDBFile();
   const raw = fs.readFileSync(DB_PATH, "utf8");
-  return JSON.parse(raw);
+
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error("❌ DB JSON parse failed. Resetting to empty DB.", e);
+    return { users: {} };
+  }
 }
 
 function writeDB(db) {
