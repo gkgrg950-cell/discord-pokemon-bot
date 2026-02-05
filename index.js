@@ -24,7 +24,6 @@ async function registerCommands() {
   }
 
   const commands = [teamCommand.toJSON()];
-
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 
   console.log("🔄 Registering slash commands...");
@@ -66,7 +65,7 @@ client.on("interactionCreate", async (interaction) => {
     );
   }
 
-  // /team set
+  // ✅ /team set
   if (sub === "set") {
     const teamText = interaction.options.getString("team", true);
 
@@ -81,23 +80,8 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
-  // /team view
+  // ✅ /team view
   if (sub === "view") {
-// /team delete
-if (sub === "delete") {
-  const ok = deleteTeam(interaction.user.id, format);
-
-  if (!ok) {
-    return interaction.editReply(
-      `삭제할 팀이 없어. (format: \`${format}\`)`
-    );
-  }
-
-  return interaction.editReply(
-    `🗑️ 팀 삭제 완료! (format: \`${format}\`)`
-  );
-}
-
     const teamText = getTeam(interaction.user.id, format);
 
     if (!teamText) {
@@ -122,6 +106,20 @@ if (sub === "delete") {
       `📄 너의 팀 (format: \`${format}\`)\n\`\`\`\n${teamText}\n\`\`\``
     );
   }
+
+  // ✅ /team delete
+  if (sub === "delete") {
+    const ok = deleteTeam(interaction.user.id, format);
+
+    if (!ok) {
+      return interaction.editReply(`삭제할 팀이 없어. (format: \`${format}\`)`);
+    }
+
+    return interaction.editReply(`🗑️ 팀 삭제 완료! (format: \`${format}\`)`);
+  }
+
+  // 혹시 예상 못한 subcommand가 오면 안내
+  return interaction.editReply("알 수 없는 명령이야. `/team`을 다시 확인해줘.");
 });
 
 registerCommands()
