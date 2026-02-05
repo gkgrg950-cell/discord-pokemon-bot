@@ -10,118 +10,154 @@ const {
   AttachmentBuilder,
 } = require("discord.js");
 
-require("dotenv").config({ quiet: true });
+require("dotenv").config();
 
 const { teamCommand } = require("./commands/team");
 const { setTeam, getTeam, deleteTeam, listFormats } = require("./db");
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds],
+});
+
+//////////////////////////////////////////////////////
+// Slash 등록
+//////////////////////////////////////////////////////
 
 async function registerCommands() {
-  if (!process.env.CLIENT_ID || !process.env.GUILD_ID || !process.env.DISCORD_TOKEN) {
-    console.log("⚠️ Skip command register: missing env (CLIENT_ID/GUILD_ID/DISCORD_TOKEN)");
-    return;
+  try {
+    const commands = [teamCommand.toJSON()];
+    const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
+
+    console.log("🔄 Registering slash commands...");
+
+    await rest.put(
+      Routes.applicationGuildCommands(
+        process.env.CLIENT_ID,
+        process.env.GUILD_ID
+      ),
+      { body: commands }
+    );
+
+    console.log("✅ Slash commands registered!");
+  } catch (err) {
+    console.error("❌ Command register failed:", err);
   }
-
-  const commands = [teamCommand.toJSON()];
-  const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
-
-  console.log("🔄 Registering slash commands...");
-  await rest.put(
-    Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-    { body: commands }
-  );
-  console.log("✅ Slash commands registered!");
 }
 
+//////////////////////////////////////////////////////
+// Railway 생존용 서버
+//////////////////////////////////////////////////////
+
 const PORT = process.env.PORT || 3000;
-http
-  .createServer((req, res) => {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end("OK");
-  })
-  .listen(PORT, "0.0.0.0", () => console.log("HTTP server listening on", PORT));
+
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end("OK");
+}).listen(PORT, "0.0.0.0");
+
+//////////////////////////////////////////////////////
+// 봇 준비
+//////////////////////////////////////////////////////
 
 client.once("clientReady", () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
+//////////////////////////////////////////////////////
+// 명령 처리
+//////////////////////////////////////////////////////
+
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== "team") return;
 
-  const sub = interaction.options.getSubcommand();
-
-  // list는 format이 필요 없어서 여기서 먼저 처리
   await interaction.deferReply({ ephemeral: true });
 
-  // ✅ /team list
+  const sub = interaction.options.getSubcommand();
+
+  //////////////////////////////////////////////////////
+  // list (format 필요 없음)
+  //////////////////////////////////////////////////////
+
   if (sub === "list") {
     const formats = listFormats(interaction.user.id);
 
-    if (formats.length === 0) {
-      return interaction.editReply("저장된 팀이 없어. 먼저 `/team set`으로 저장해줘!");
+    if (!formats.length) {
+      return interaction.editReply("저장된 팀이 없어!");
     }
 
-    const lines = formats.map((f) => `• \`${f}\``).join("\n");
-    return interaction.editReply(`📦 너의 팀 목록\n${lines}`);
-  }
-
-  // set/view/delete는 format이 필요함
-  const formatRaw = interaction.options.getString("format", true);
-  const format = formatRaw.trim().toLowerCase();
-
-  const invalidFormat =
-    !format || format.length < 3 || format.length > 32 || /\s/.test(format);
-
-  if (invalidFormat) {
     return interaction.editReply(
-      "포맷이 이상해요. 예: `gen9ou`, `gen9randombattle` 처럼 입력해줘."
+      `📦 팀 목록:\n${formats.map(f => `• ${f}`).join("\n")}`
     );
   }
 
-  // ✅ /team set
-  if (sub === "set") {
-    const teamText = interaction.options.getString("team", true);
+  //////////////////////////////////////////////////////
+  // format 필요한 것들
+  //////////////////////////////////////////////////////
 
-    try {
-      setTeam(interaction.user.id, format, teamText);
-      return interaction.editReply(
-        `✅ 저장 완료!\n포맷: \`${format}\`\n조회: \`/team view format:${format}\``
-      );
-    } catch (e) {
-      console.error(e);
-      return interaction.editReply("❌ 저장 실패! 팀 텍스트가 비었거나 오류가 났어.");
-    }
+  const format = interaction.options.getString("format", true)
+    .trim()
+    .toLowerCase();
+
+  //////////////////////////////////////////////////////
+  // set
+  //////////////////////////////////////////////////////
+
+  if (sub === "set") {
+    const team = interaction.options.getString("team", true);
+
+    setTeam(interaction.user.id, format, team);
+
+    return interaction.editReply(
+      `✅ 저장 완료!\n포맷: ${format}`
+    );
   }
 
-  // ✅ /team view
-  if (sub === "view") {
-    const teamText = getTeam(interaction.user.id, format);
+  //////////////////////////////////////////////////////
+  // view
+  //////////////////////////////////////////////////////
 
-    if (!teamText) {
-      return interaction.editReply(
-        `저장된 팀이 없어. 먼저 \`/team set\`으로 저장해줘.\n포맷: \`${format}\``
-      );
+  if (sub === "view") {
+    const team = getTeam(interaction.user.id, format);
+
+    if (!team) {
+      return interaction.editReply("저장된 팀이 없어!");
     }
 
-    // 길면 파일로 보내기
-    if (teamText.length > 1800) {
-      const buffer = Buffer.from(teamText, "utf8");
-      const file = new AttachmentBuilder(buffer, { name: `team-${format}.txt` });
+    if (team.length > 1800) {
+      const file = new AttachmentBuilder(
+        Buffer.from(team),
+        { name: `team-${format}.txt` }
+      );
 
       return interaction.editReply({
-        content: `📄 팀이 길어서 파일로 보낼게! (format: \`${format}\`)`,
+        content: "📄 팀이 길어서 파일로 보낼게!",
         files: [file],
       });
     }
 
-    // 짧으면 메시지로 보여주기
     return interaction.editReply(
-      `📄 너의 팀 (format: \`${format}\`)\n\`\`\`\n${teamText}\n\`\`\``
+      `📄 팀 (${format})\n\`\`\`\n${team}\n\`\`\``
     );
   }
 
-  // ✅ /team delete
+  //////////////////////////////////////////////////////
+  // delete
+  //////////////////////////////////////////////////////
+
   if (sub === "delete") {
-    const ok = del
+    const ok = deleteTeam(interaction.user.id, format);
+
+    if (!ok) {
+      return interaction.editReply("삭제할 팀이 없어!");
+    }
+
+    return interaction.editReply("🗑️ 삭제 완료!");
+  }
+});
+
+//////////////////////////////////////////////////////
+
+registerCommands()
+  .then(() => client.login(process.env.DISCORD_TOKEN))
+  .catch(console.error);
