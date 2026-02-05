@@ -3,7 +3,7 @@ const { SlashCommandBuilder } = require("discord.js");
 
 const teamCommand = new SlashCommandBuilder()
   .setName("team")
-  .setDescription("포켓몬 팀 저장/조회")
+  .setDescription("포켓몬 팀 저장/조회/삭제/목록")
 
   // ✅ 팀 저장
   .addSubcommand((sub) =>
@@ -38,7 +38,7 @@ const teamCommand = new SlashCommandBuilder()
       )
   )
 
-  // ⭐⭐⭐ 팀 삭제 (새로 추가!)
+  // ✅ 팀 삭제
   .addSubcommand((sub) =>
     sub
       .setName("delete")
@@ -49,6 +49,13 @@ const teamCommand = new SlashCommandBuilder()
           .setDescription("삭제할 포맷 (예: gen9ou)")
           .setRequired(true)
       )
+  )
+
+  // ✅ 팀 목록
+  .addSubcommand((sub) =>
+    sub
+      .setName("list")
+      .setDescription("내가 저장한 팀 포맷 목록")
   );
 
 module.exports = { teamCommand };

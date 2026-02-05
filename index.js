@@ -13,7 +13,7 @@ const {
 require("dotenv").config({ quiet: true });
 
 const { teamCommand } = require("./commands/team");
-const { setTeam, getTeam, deleteTeam } = require("./db");
+const { setTeam, getTeam, deleteTeam, listFormats } = require("./db");
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -51,13 +51,28 @@ client.on("interactionCreate", async (interaction) => {
   if (interaction.commandName !== "team") return;
 
   const sub = interaction.options.getSubcommand();
+
+  // list는 format이 필요 없어서 여기서 먼저 처리
+  await interaction.deferReply({ ephemeral: true });
+
+  // ✅ /team list
+  if (sub === "list") {
+    const formats = listFormats(interaction.user.id);
+
+    if (formats.length === 0) {
+      return interaction.editReply("저장된 팀이 없어. 먼저 `/team set`으로 저장해줘!");
+    }
+
+    const lines = formats.map((f) => `• \`${f}\``).join("\n");
+    return interaction.editReply(`📦 너의 팀 목록\n${lines}`);
+  }
+
+  // set/view/delete는 format이 필요함
   const formatRaw = interaction.options.getString("format", true);
   const format = formatRaw.trim().toLowerCase();
 
   const invalidFormat =
     !format || format.length < 3 || format.length > 32 || /\s/.test(format);
-
-  await interaction.deferReply({ ephemeral: true });
 
   if (invalidFormat) {
     return interaction.editReply(
@@ -109,20 +124,4 @@ client.on("interactionCreate", async (interaction) => {
 
   // ✅ /team delete
   if (sub === "delete") {
-    const ok = deleteTeam(interaction.user.id, format);
-
-    if (!ok) {
-      return interaction.editReply(`삭제할 팀이 없어. (format: \`${format}\`)`);
-    }
-
-    return interaction.editReply(`🗑️ 팀 삭제 완료! (format: \`${format}\`)`);
-  }
-
-  // 혹시 예상 못한 subcommand가 오면 안내
-  return interaction.editReply("알 수 없는 명령이야. `/team`을 다시 확인해줘.");
-});
-
-registerCommands()
-  .then(() => client.login(process.env.DISCORD_TOKEN))
-  .then(() => console.log("Login OK"))
-  .catch((e) => console.error("❌ Startup failed:", e));
+    const ok = del

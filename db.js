@@ -52,6 +52,7 @@ function getTeam(userId, format) {
   const db = readDB();
   return db.users?.[userId]?.teams?.[fmt]?.teamText || null;
 }
+
 function deleteTeam(userId, format) {
   const fmt = normalizeFormat(format);
   const db = readDB();
@@ -61,7 +62,6 @@ function deleteTeam(userId, format) {
 
   delete user.teams[fmt];
 
-  // 유저가 가진 팀이 0개가 되면 유저 데이터도 정리(선택이지만 깔끔함)
   if (Object.keys(user.teams).length === 0) {
     delete db.users[userId];
   }
@@ -70,4 +70,11 @@ function deleteTeam(userId, format) {
   return true;
 }
 
-module.exports = { setTeam, getTeam, deleteTeam };
+function listFormats(userId) {
+  const db = readDB();
+  const teams = db.users?.[userId]?.teams;
+  if (!teams) return [];
+  return Object.keys(teams).sort();
+}
+
+module.exports = { setTeam, getTeam, deleteTeam, listFormats };
