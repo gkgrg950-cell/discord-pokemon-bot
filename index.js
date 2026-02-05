@@ -1,11 +1,19 @@
-const { setTeam, getTeam } = require("./db");
-const { teamCommand } = require("./commands/team");
 process.on("uncaughtException", (err) => console.error("UNCAUGHT:", err));
 process.on("unhandledRejection", (err) => console.error("UNHANDLED:", err));
 
 const http = require("http");
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
+const {
+  Client,
+  GatewayIntentBits,
+  REST,
+  Routes,
+  AttachmentBuilder,
+} = require("discord.js");
+
 require("dotenv").config({ quiet: true });
+
+const { teamCommand } = require("./commands/team");
+const { setTeam, getTeam } = require("./db");
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -15,9 +23,7 @@ async function registerCommands() {
     return;
   }
 
-const commands = [
-  teamCommand.toJSON(),
-];
+  const commands = [teamCommand.toJSON()];
 
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 
@@ -45,12 +51,10 @@ client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== "team") return;
 
-  // set / view 중 뭔지 가져오기
   const sub = interaction.options.getSubcommand();
   const formatRaw = interaction.options.getString("format", true);
   const format = formatRaw.trim().toLowerCase();
 
-  // 포맷 간단 검증
   const invalidFormat =
     !format || format.length < 3 || format.length > 32 || /\s/.test(format);
 
@@ -87,15 +91,20 @@ client.on("interactionCreate", async (interaction) => {
       );
     }
 
-    // 너무 길면 잘라서 보여주기
-    const MAX_SHOW = 1800;
-    const shown =
-      teamText.length > MAX_SHOW
-        ? teamText.slice(0, MAX_SHOW) + "\n... (중략)"
-        : teamText;
+    // 길면 파일로 보내기
+    if (teamText.length > 1800) {
+      const buffer = Buffer.from(teamText, "utf8");
+      const file = new AttachmentBuilder(buffer, { name: `team-${format}.txt` });
 
+      return interaction.editReply({
+        content: `📄 팀이 길어서 파일로 보낼게! (format: \`${format}\`)`,
+        files: [file],
+      });
+    }
+
+    // 짧으면 메시지로 보여주기
     return interaction.editReply(
-      `📄 너의 팀 (format: \`${format}\`)\n\`\`\`\n${shown}\n\`\`\``
+      `📄 너의 팀 (format: \`${format}\`)\n\`\`\`\n${teamText}\n\`\`\``
     );
   }
 });
