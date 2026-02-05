@@ -18,3 +18,10 @@ client.on("interactionCreate", async (interaction) => {
 client.login(process.env.DISCORD_TOKEN).catch((e) => {
   console.error("❌ Login failed:", e);
 });
+const http = require("http");
+
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("OK");
+}).listen(PORT, () => console.log("HTTP server listening on", PORT));
